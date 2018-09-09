@@ -22,6 +22,7 @@ var (
 	ResponseQueueKey string
 	JobQueue         *redis_queue.Queue
 	ResponseQueue    *redis_queue.Queue
+	requests         map[string]*discordgo.Session
 )
 
 func init() {
@@ -40,6 +41,8 @@ func init() {
 
 	JobQueue = jq
 	ResponseQueue = rq
+
+	requests = make(map[string]*discordgo.Session)
 }
 
 func main() {
@@ -110,10 +113,18 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("An error occured: %v", err))
 	}
 
-	s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Working on request: %s", randomString(10)))
+	requestID := randomString(10)
+	requests[requestID] = s
+	s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Working on request: %s", requestID))
 
 	code = strings.Trim(code, "`")
-	err = JobQueue.Enqueue(encodeJob(s, m.ChannelID, code, lang))
+	json, err := encodeJob(requestID, m.ChannelID, code, lang)
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "Error: "+err.Error())
+		return
+	}
+
+	err = JobQueue.Enqueue(json)
 
 	if err != nil {
 		s.ChannelMessageSend(m.ChannelID, "Error: "+err.Error())
@@ -123,17 +134,20 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 // Job is a JSON structure representing information about the job.
 type Job struct {
-	Session   *discordgo.Session `json:"session"`
-	ChannelID string             `json:"channelID"`
-	Code      string             `json:"code"`
-	Language  string             `json:"language"`
+	ChannelID string `json:"channelID"`
+	Code      string `json:"code"`
+	Language  string `json:"language"`
+	RequestID string `json:"requestID"`
 }
 
-func encodeJob(s *discordgo.Session, channelID, code, lang string) string {
-	jsonJob, _ := json.Marshal(Job{s, channelID, code, lang})
+func encodeJob(requestID, channelID, code, lang string) (string, error) {
+	jsonJob, err := json.Marshal(Job{requestID, channelID, code, lang})
 
-	fmt.Println(jsonJob)
-	return string(jsonJob)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonJob), nil
 }
 
 func validCommand(cmd string) (matched bool, err error) {
