@@ -1,8 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -29,7 +28,6 @@ func init() {
 	Token = os.Getenv("DISCORD_TOKEN")
 	RedisHost = os.Getenv("REDIS_HOST")
 	JobQueueKey = os.Getenv("JOB_QUEUE")
-	ResponseQueueKey = os.Getenv("RESPONSE_QUEUE")
 
 	jq, err := redis_queue.NewQueue(RedisHost, JobQueueKey)
 	if err != nil {
@@ -123,19 +121,19 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 }
 
+// Job is a JSON structure representing information about the job.
 type Job struct {
-	session   *discordgo.Session
-	channelID string
-	code      string
-	language  string
+	Session   *discordgo.Session `json:"session"`
+	ChannelID string             `json:"channelID"`
+	Code      string             `json:"code"`
+	Language  string             `json:"language"`
 }
 
 func encodeJob(s *discordgo.Session, channelID, code, lang string) string {
-	job := Job{s, channelID, code, lang}
-	var jobGob bytes.Buffer
-	enc := gob.NewEncoder(&jobGob)
-	enc.Encode(job)
-	return jobGob.String()
+	jsonJob, _ := json.Marshal(Job{s, channelID, code, lang})
+
+	fmt.Println(jsonJob)
+	return string(jsonJob)
 }
 
 func validCommand(cmd string) (matched bool, err error) {
