@@ -88,8 +88,6 @@ func pollQueue() {
 			// TODO
 			ready, err := ResponseQueue.PollQueue()
 
-			fmt.Println(ready, err)
-
 			if !ready {
 				return
 			}
@@ -102,7 +100,7 @@ func pollQueue() {
 
 			response := decodeResponse(item)
 
-			requests[response.RequestID].ChannelMessageSend(response.ChannelID, fmt.Sprintf("Code output for: %s\n```%s```", response.RequestID, response.Response))
+			requests[response.RequestID].ChannelMessageSend(response.ChannelID, fmt.Sprintf("Output for: %s\n```%s```", response.RequestID, response.Response))
 		}()
 	}
 }
