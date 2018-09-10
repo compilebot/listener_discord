@@ -4,6 +4,8 @@ github.com/gomodule/redigo v2.0.0+incompatible h1:K/R+8tc58AaqLkqG2Ol3Qk+DR/TlNu
 github.com/gomodule/redigo v2.0.0+incompatible/go.mod h1:B4C85qUVwatsJoIUNIfCRsp7qO0iAmpGFZ4EELWSbC4=
 github.com/gopherpun/redis_queue v0.0.0-20180907034755-74fb9837a553 h1:05IFlpUPJHRRArbUaEeVUZJGR2aiZBQh50S2w3tr1l0=
 github.com/gopherpun/redis_queue v0.0.0-20180907034755-74fb9837a553/go.mod h1:4ukVWzPJytRpCTI6XakQMoiosDdnvxhCVbDLvx0mMgs=
+github.com/gopherpun/redis_queue v0.0.0-20180907184208-5e2f56e521c5 h1:azn2wZpj8vS7iYm8sHEeVVausiOitCyJMj997cAXdlU=
+github.com/gopherpun/redis_queue v0.0.0-20180907184208-5e2f56e521c5/go.mod h1:4ukVWzPJytRpCTI6XakQMoiosDdnvxhCVbDLvx0mMgs=
 github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH/Q=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793 h1:u+LnwYTOOW7Ukr/fppxEb1Nwz0AtPflrblfvUudpo+I=

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gopherpun/redis_queue"
@@ -29,6 +30,7 @@ func init() {
 	Token = os.Getenv("DISCORD_TOKEN")
 	RedisHost = os.Getenv("REDIS_HOST")
 	JobQueueKey = os.Getenv("JOB_QUEUE")
+	ResponseQueueKey = os.Getenv("RESPONSE_QUEUE")
 
 	jq, err := redis_queue.NewQueue(RedisHost, JobQueueKey)
 	if err != nil {
@@ -41,6 +43,7 @@ func init() {
 
 	JobQueue = jq
 	ResponseQueue = rq
+	ResponseQueue.Conn.Do("FLUSHALL")
 
 	requests = make(map[string]*discordgo.Session)
 }
@@ -68,10 +71,55 @@ func main() {
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	go pollQueue()
 	<-sc
 
 	// Cleanly close down the Discord session.
 	dg.Close()
+}
+
+func pollQueue() {
+	rate := time.Second
+	throttle := time.Tick(rate)
+	for {
+		<-throttle
+		go func() {
+
+			// TODO
+			ready, err := ResponseQueue.PollQueue()
+
+			fmt.Println(ready, err)
+
+			if !ready {
+				return
+			}
+
+			item, err := ResponseQueue.Dequeue()
+
+			if err != nil {
+				return
+			}
+
+			response := decodeResponse(item)
+
+			requests[response.RequestID].ChannelMessageSend(response.ChannelID, fmt.Sprintf("Code output for: %s\n```%s```", response.RequestID, response.Response))
+		}()
+	}
+}
+
+type Response struct {
+	ChannelID string
+	Code      string
+	Language  string
+	RequestID string
+	Response  string
+}
+
+func decodeResponse(responseItem string) Response {
+	var response Response
+	_ = json.Unmarshal([]byte(responseItem), &response)
+
+	return response
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -141,7 +189,7 @@ type Job struct {
 }
 
 func encodeJob(requestID, channelID, code, lang string) (string, error) {
-	jsonJob, err := json.Marshal(Job{requestID, channelID, code, lang})
+	jsonJob, err := json.Marshal(Job{channelID, code, lang, requestID})
 
 	if err != nil {
 		return "", err
