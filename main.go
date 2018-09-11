@@ -86,7 +86,7 @@ func pollQueue() {
 		go func() {
 
 			// TODO
-			ready, err := ResponseQueue.PollQueue()
+			ready, err := ResponseQueue.Peek()
 
 			if !ready {
 				return
