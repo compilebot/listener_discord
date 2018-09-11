@@ -105,6 +105,7 @@ func pollQueue() {
 	}
 }
 
+// Response is a JSON struct represention information about the response.
 type Response struct {
 	ChannelID string
 	Code      string
@@ -123,7 +124,7 @@ func decodeResponse(responseItem string) Response {
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the autenticated bot has access to.
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	langs := map[string]bool{"go": true}
+	langs := map[string]bool{"go": true, "python": true}
 
 	// Ignore all messages created by the bot itself
 	if m.Author.ID == s.State.User.ID {
