@@ -1,6 +1,6 @@
 FROM golang:1.11.1-alpine3.8 as build-env
 # All these steps will be cached
-RUN apk update && apk add git
+RUN apk update && apk add git && apk add ca-certificates
 RUN mkdir /discord_listener
 WORKDIR /discord_listener
 COPY go.mod .
