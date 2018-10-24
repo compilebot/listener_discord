@@ -87,7 +87,7 @@ func main() {
 			"msg":     "Failed to connect to Discord.",
 			"service": service,
 			"err_msg": err,
-		}).Error()
+		}).Fatal()
 		fmt.Println("error opening connection,", err)
 		return
 	}
