@@ -13,6 +13,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gopherpun/redis_queue"
+	"github.com/sirupsen/logrus"
 )
 
 // Env Variables
@@ -24,6 +25,7 @@ var (
 	JobQueue         *redis_queue.Queue
 	ResponseQueue    *redis_queue.Queue
 	requests         map[string]*discordgo.Session
+	service          string
 )
 
 func init() {
@@ -32,12 +34,25 @@ func init() {
 	JobQueueKey = os.Getenv("JOB_QUEUE")
 	ResponseQueueKey = os.Getenv("RESPONSE_QUEUE")
 
+	service = "discord_listener"
+
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+
 	jq, err := redis_queue.NewQueue(RedisHost, JobQueueKey)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Failed to connect to Redis.",
+			"service": service,
+			"err_msg": err,
+		}).Fatal()
 		panic(err)
 	}
 	rq, err := redis_queue.NewQueue(RedisHost, ResponseQueueKey)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Failed to connect to Redis.",
+			"service": service,
+		}).Fatal()
 		panic(err)
 	}
 
@@ -45,6 +60,7 @@ func init() {
 	ResponseQueue = rq
 	ResponseQueue.Conn.Do("FLUSHALL")
 
+	// TODO don't violate 12 factor with sticky sessions
 	requests = make(map[string]*discordgo.Session)
 }
 
@@ -53,7 +69,11 @@ func main() {
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
-		fmt.Println("error creating Discord session,", err)
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Failed to create Discord session with associated token.",
+			"service": service,
+			"err_msg": err,
+		}).Error()
 		return
 	}
 
@@ -63,6 +83,11 @@ func main() {
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Failed to connect to Discord.",
+			"service": service,
+			"err_msg": err,
+		}).Error()
 		fmt.Println("error opening connection,", err)
 		return
 	}
@@ -95,6 +120,11 @@ func pollQueue() {
 			item, err := ResponseQueue.Dequeue()
 
 			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"msg":     "Failed to dequeue item from Response Queue.",
+					"service": service,
+					"err_msg": err,
+				}).Error()
 				return
 			}
 
@@ -138,7 +168,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	valid, err := validCommand(m.Content)
 
 	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("An error occured: %x", err))
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Error parsing command.",
+			"service": service,
+			"err_msg": err,
+		}).Warn()
+		s.ChannelMessageSend(m.ChannelID, "Error parsing command.")
 		return
 	}
 
@@ -157,7 +192,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	code, err := getCode(m.Content)
 
 	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("An error occured: %v", err))
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Error parsing code.",
+			"service": service,
+			"err_msg": err,
+		}).Warn()
+		s.ChannelMessageSend(m.ChannelID, "Error parsing code.")
 	}
 
 	requestID := randomString(10)
@@ -167,14 +207,24 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	code = strings.Trim(code, "`")
 	json, err := encodeJob(requestID, m.ChannelID, code, lang)
 	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, "Error: "+err.Error())
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Error encoding job.",
+			"service": service,
+			"err_msg": err,
+		}).Warn()
+		s.ChannelMessageSend(m.ChannelID, "Error: EncodeJob.")
 		return
 	}
 
 	err = JobQueue.Enqueue(json)
 
 	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, "Error: "+err.Error())
+		logrus.WithFields(logrus.Fields{
+			"msg":     "Error adding job to Job Queue.",
+			"service": service,
+			"err_msg": err,
+		}).Warn()
+		s.ChannelMessageSend(m.ChannelID, "Error: JobQueue.")
 		return
 	}
 }
